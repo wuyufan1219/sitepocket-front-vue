@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import request from '@/utils/request'
 
 interface UserInfo {
     id?: number
@@ -15,60 +16,22 @@ export const useAuthStore = defineStore('auth', () => {
     const nickname = ref<string>(localStorage.getItem('nickname') || '')
 
     async function login(username: string, password: string) {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 10000)
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
-                signal: controller.signal,
-            })
-            clearTimeout(timer)
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}))
-                throw { response: { data: err } }
-            }
-            const data = await res.json()
-            // RestResp 格式: { code, message, data: { token, uid, nickname } }
-            const loginOk = data.code === undefined || data.code === 0 || data.code === '0' || data.code === '00000'
-            if (!loginOk) {
-                throw { response: { data } }
-            }
-            const payload = data.data || data
-            token.value = payload.token || ''
-            role.value = 'user'
-            nickname.value = payload.nickname || username
-            localStorage.setItem('token', token.value)
-            localStorage.setItem('role', role.value)
-            localStorage.setItem('nickname', nickname.value)
-        } finally {
-            clearTimeout(timer)
-        }
+        const res = await request.post('/api/auth/login', { username, password })
+        const payload = res.data.data || res.data
+        token.value = payload.token || ''
+        role.value = 'user'
+        nickname.value = payload.nickname || username
+        localStorage.setItem('token', token.value)
+        localStorage.setItem('role', role.value)
+        localStorage.setItem('nickname', nickname.value)
     }
 
     /** 用户注册：对接后端 POST /api/front/user/register */
-    async function register(
-        username: string,
-        password: string,
-        name?: string,
-    ) {
-        const res = await fetch('/api/front/user/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, ...(name ? { name } : {}) }),
+    async function register(username: string, password: string, name?: string) {
+        const res = await request.post('/api/front/user/register', {
+            username, password, ...(name ? { name } : {}),
         })
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            throw { response: { data: err } }
-        }
-        const data = await res.json()
-        // RestResp 格式: { code, message, data: {...} }
-        const regOk = data.code === undefined || data.code === 0 || data.code === '0' || data.code === '00000'
-        if (!regOk) {
-            throw { response: { data } }
-        }
-        return data
+        return res.data
     }
 
     /** 获取当前用户信息（从登录时缓存的 nickName 读取），不请求后端 */

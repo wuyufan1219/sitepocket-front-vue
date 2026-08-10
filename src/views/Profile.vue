@@ -67,6 +67,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import request from '@/utils/request'
 import { UserRound, Pencil, Lock } from '@lucide/vue'
 
 const router = useRouter()
@@ -87,16 +88,11 @@ const pwdMsg = ref('')
 const nickLoading = ref(false)
 const pwdLoading = ref(false)
 
-function getAuthHeader() {
-  const token = localStorage.getItem('token') || ''
-  return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-}
-
 onMounted(async () => {
   try {
-    const res = await fetch('/api/front/user/info', { headers: getAuthHeader() })
-    const json = await res.json()
-    if (json.code === '00000' && json.data) {
+    const res = await request.get('/api/front/user/info')
+    const json = res.data
+    if (json.data) {
       userId.value = json.data.id
       username.value = json.data.username
       nickname.value = json.data.nickname || json.data.username
@@ -110,20 +106,12 @@ async function saveNickname() {
   if (!val) { nickMsg.value = '昵称不能为空'; return }
   nickLoading.value = true; nickMsg.value = ''
   try {
-    const res = await fetch('/api/front/user/nickname', {
-      method: 'PUT', headers: getAuthHeader(),
-      body: JSON.stringify({ nickname: val }),
-    })
-    const json = await res.json()
-    if (json.code === '00000') {
-      nickname.value = val
-      localStorage.setItem('nickname', nickname.value)
-      editingNick.value = false
-      newNickname.value = ''
-    } else {
-      nickMsg.value = json.message || '修改失败'
-    }
-  } catch (e) { nickMsg.value = '网络错误' }
+    await request.put('/api/front/user/nickname', { nickname: val })
+    nickname.value = val
+    localStorage.setItem('nickname', nickname.value)
+    editingNick.value = false
+    newNickname.value = ''
+  } catch (e: unknown) { nickMsg.value = (e as Error)?.message || '网络错误' }
   finally { nickLoading.value = false }
 }
 
@@ -133,19 +121,13 @@ async function savePassword() {
   if (newPassword.value !== confirmPassword.value) { pwdMsg.value = '两次密码不一致'; return }
   pwdLoading.value = true; pwdMsg.value = ''
   try {
-    const res = await fetch('/api/front/user/password', {
-      method: 'PUT', headers: getAuthHeader(),
-      body: JSON.stringify({ oldPassword: oldPassword.value, newPassword: newPassword.value }),
+    await request.put('/api/front/user/password', {
+      oldPassword: oldPassword.value, newPassword: newPassword.value,
     })
-    const json = await res.json()
-    if (json.code === '00000') {
-      pwdMsg.value = '密码修改成功'
-      changingPwd.value = false
-      clearPwdFields()
-    } else {
-      pwdMsg.value = json.message || '修改失败'
-    }
-  } catch (e) { pwdMsg.value = '网络错误' }
+    pwdMsg.value = '密码修改成功'
+    changingPwd.value = false
+    clearPwdFields()
+  } catch (e: unknown) { pwdMsg.value = (e as Error)?.message || '网络错误' }
   finally { pwdLoading.value = false }
 }
 

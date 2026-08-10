@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import request from '@/utils/request'
 
 /** 游戏分类项 */
 export interface GameCategory {
@@ -31,14 +32,10 @@ export const useGameFilterStore = defineStore('gameFilter', () => {
   /** 从后端加载分类列表 */
   async function fetchCategories() {
     try {
-      const res = await fetch('/api/front/categories?type=game')
-      if (res.ok) {
-        const data = await res.json()
-        // 预期后端返回 { data: [{ name: 'xxx' }, ...] }
-        const list = data.data || data
-        if (Array.isArray(list) && list.length) {
-          categories.value = list
-        }
+      const res = await request.get('/api/front/categories', { params: { type: 'game' } })
+      const list = res.data.data || res.data
+      if (Array.isArray(list) && list.length) {
+        categories.value = list
       }
     } catch {
       // 后端不可用时使用默认分类

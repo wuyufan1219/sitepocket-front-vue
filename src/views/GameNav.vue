@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import request from '@/utils/request'
 import { Search } from '@lucide/vue'
 
 const route = useRoute()
@@ -97,15 +98,11 @@ const filteredSections = computed(() =>
 onMounted(async () => {
   try {
     const [secRes, treeRes] = await Promise.all([
-      fetch('/api/front/website/sections'),
-      fetch('/api/front/category/tree'),
+      request.get('/api/front/website/sections'),
+      request.get('/api/front/category/tree'),
     ])
-    const secJson = await secRes.json()
-    const treeJson = await treeRes.json()
-    if (secJson.code === '00000') sections.value = secJson.data
-    if (treeJson.code === '00000') {
-      for (const p of treeJson.data) parentNames.value[p.id] = p.name
-    }
+    sections.value = secRes.data.data
+    for (const p of treeRes.data.data) parentNames.value[p.id] = p.name
   } catch (e) { console.error(e) } finally { loading.value = false }
   const qCat = route.query.category
   if (qCat) activeCat.value = Number(qCat)
@@ -118,10 +115,8 @@ async function handleSearch() {
   searching.value = true
   searchResults.value = []
   try {
-    const res = await fetch('/api/front/search?keyword=' + encodeURIComponent(q))
-    const json = await res.json()
-    if (json.code === '00000') searchResults.value = json.data || []
-    else searchResults.value = [{ id:0, siteName:'错误', siteUrl:'#', siteDesc: json.message || '未知错误' }]
+    const res = await request.get('/api/front/search', { params: { keyword: q } })
+    searchResults.value = res.data.data || []
   } catch (e) {
     console.error('搜索失败', e)
     searchResults.value = [{ id:0, siteName:'网络错误', siteUrl:'#', siteDesc: String(e) }]

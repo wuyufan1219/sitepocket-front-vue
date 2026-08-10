@@ -51,6 +51,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import request from '@/utils/request'
 import { Search } from '@lucide/vue'
 
 const keyword = ref(''); const loading = ref(true); const activeCat = ref<number>(2)
@@ -61,14 +62,17 @@ const searchResults = ref<{ id:number; siteName:string; siteUrl:string; siteIcon
 const filteredSections = computed(() => sections.value.filter(s => s.parentCategoryId === activeCat.value))
 
 onMounted(async () => {
-  try { const r = await fetch('/api/front/website/sections'); const j = await r.json()
-    if (j.code === '00000') sections.value = j.data } catch (e) { console.error(e) } finally { loading.value = false }
+  try {
+    const res = await request.get('/api/front/website/sections')
+    sections.value = res.data.data
+  } catch (e) { console.error(e) } finally { loading.value = false }
 })
 async function handleSearch() {
   const q = keyword.value.trim(); if (!q) return
   lastKeyword.value = q; searching.value = true; searchResults.value = []
-  try { const r = await fetch('/api/front/search?keyword=' + encodeURIComponent(q)); const j = await r.json()
-    if (j.code === '00000') searchResults.value = j.data || []
+  try {
+    const r = await request.get('/api/front/search', { params: { keyword: q } })
+    searchResults.value = r.data.data || []
   } catch (e) { searchResults.value = [{ id:0, siteName:'网络错误', siteUrl:'#', siteDesc: String(e) }] }
   finally { searching.value = false }
 }
