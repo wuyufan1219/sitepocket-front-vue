@@ -15,27 +15,36 @@ export const useAuthStore = defineStore('auth', () => {
     const nickname = ref<string>(localStorage.getItem('nickname') || '')
 
     async function login(username: string, password: string) {
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
-        })
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            throw { response: { data: err } }
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 10000)
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+                signal: controller.signal,
+            })
+            clearTimeout(timer)
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                throw { response: { data: err } }
+            }
+            const data = await res.json()
+            // RestResp 格式: { code, message, data: { token, uid, nickname } }
+            const loginOk = data.code === undefined || data.code === 0 || data.code === '0' || data.code === '00000'
+            if (!loginOk) {
+                throw { response: { data } }
+            }
+            const payload = data.data || data
+            token.value = payload.token || ''
+            role.value = 'user'
+            nickname.value = payload.nickname || username
+            localStorage.setItem('token', token.value)
+            localStorage.setItem('role', role.value)
+            localStorage.setItem('nickname', nickname.value)
+        } finally {
+            clearTimeout(timer)
         }
-        const data = await res.json()
-        // RestResp 格式: { code, message, data: { token, uid, nickname } }
-        if (data.code !== undefined && data.code !== '0' && data.code !== '00000') {
-            throw { response: { data } }
-        }
-        const payload = data.data || data
-        token.value = payload.token || ''
-        role.value = 'user'
-        nickname.value = payload.nickname || username
-        localStorage.setItem('token', token.value)
-        localStorage.setItem('role', role.value)
-        localStorage.setItem('nickname', nickname.value)
     }
 
     /** 用户注册：对接后端 POST /api/front/user/register */
@@ -55,7 +64,8 @@ export const useAuthStore = defineStore('auth', () => {
         }
         const data = await res.json()
         // RestResp 格式: { code, message, data: {...} }
-        if (data.code !== undefined && data.code !== '0' && data.code !== '00000') {
+        const regOk = data.code === undefined || data.code === 0 || data.code === '0' || data.code === '00000'
+        if (!regOk) {
             throw { response: { data } }
         }
         return data

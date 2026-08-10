@@ -55,16 +55,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { UserRound } from '@lucide/vue'
 import AuthModal from '@/components/AuthModal.vue'
 import Sidebar from '@/components/Sidebar.vue'
 
-const router = useRouter()
 const authStore = useAuthStore()
-const user = ref<any>(null)
+const user = computed(() => authStore.fetchUserInfo())
 const showMenu = ref(false)
 const showAuthModal = ref(false)
 const authModalMode = ref<'login' | 'register'>('login')
@@ -72,7 +70,6 @@ const sidebarExpanded = ref(true)
 const isAtTop = ref(true)
 
 onMounted(() => {
-  user.value = authStore.fetchUserInfo()
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('scroll', onScroll)
 })
@@ -97,7 +94,7 @@ function openAuthModal(mode: 'login' | 'register') {
 }
 
 function onLoginSuccess() {
-  user.value = authStore.fetchUserInfo()
+  // user 是 computed，自动更新，无需手动设置
 }
 
 function onRegisterSuccess() {
@@ -106,7 +103,7 @@ function onRegisterSuccess() {
 
 function handleLogout() {
   authStore.logout()
-  router.push('/login')
+  showMenu.value = false
 }
 
 </script>

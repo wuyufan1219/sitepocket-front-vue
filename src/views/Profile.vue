@@ -155,7 +155,7 @@ function clearPwdFields() {
 
 function handleLogout() {
   authStore.logout()
-  router.push('/login')
+  router.push('/game')
 }
 </script>
 

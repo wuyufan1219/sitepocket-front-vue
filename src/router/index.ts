@@ -40,16 +40,14 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to, _from) => {
   const token = localStorage.getItem('token')
   // 未登录访问受保护页面 → 跳转登录
   if (to.meta.requiresAuth && !token) {
-    next({ path: '/login', query: { redirect: to.fullPath } })
+    return { path: '/login', query: { redirect: to.fullPath } }
   // 已登录访问登录/注册页 → 跳转首页
   } else if (token && (to.path === '/login' || to.path === '/register')) {
-    next('/game')
-  } else {
-    next()
+    return '/game'
   }
 })
 

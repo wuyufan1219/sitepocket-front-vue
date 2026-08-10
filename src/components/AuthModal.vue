@@ -1,10 +1,9 @@
 <template>
   <Teleport to="body">
-    <transition name="modal-fade">
-      <div v-if="visible" class="modal-overlay" @click.self="close">
+    <div v-if="visible" class="modal-overlay" @click.self="close">
         <div class="modal-card">
           <!-- 关闭按钮 -->
-          <span class="modal-close" @click="close">✕</span>
+          <span class="modal-close" @click.stop="close">✕</span>
 
           <h1>{{ isRegister ? 'SIGN UP' : 'LOGIN' }}</h1>
 
@@ -118,7 +117,6 @@
           </transition>
         </div>
       </div>
-    </transition>
   </Teleport>
 </template>
 
@@ -191,20 +189,29 @@ function switchToLogin() {
 
 // ==================== 登录 ====================
 async function handleLogin() {
+  console.log('[AuthModal] ===== handleLogin 被调用了 =====')
   loading.value = true
   msg.value = ''
+  let ok = false
   try {
+    console.log('[AuthModal] 开始调 authStore.login, username:', loginForm.username)
     await authStore.login(loginForm.username, loginForm.password)
+    console.log('[AuthModal] 登录成功, token:', !!authStore.token)
     msg.value = '登录成功'
     msgType.value = 'success'
     emit('login-success')
-    setTimeout(() => close(), 800)
+    ok = true
   } catch (e: any) {
+    console.error('[AuthModal] 登录失败:', e)
     msg.value = e.response?.data?.message || e.response?.data?.msg || '登录失败，请检查用户名或密码'
     msgType.value = 'error'
   } finally {
     loading.value = false
+    if (ok) {
+      setTimeout(() => close(), 600)
+    }
   }
+
 }
 
 // ==================== 注册 ====================

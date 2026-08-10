@@ -71,12 +71,10 @@ async function handleLogin() {
       console.log('[Login] admin → 跳转 Vben Admin')
       const url = `http://localhost:5777/login?token=${encodeURIComponent(authStore.token)}`
       console.log('[Login] 跳转URL:', url)
-      setTimeout(() => {
-        window.location.href = url
-      }, 800)
+      window.location.href = url
     } else {
       console.log('[Login] user → 跳转 /game')
-      setTimeout(() => router.push('/game'), 800)
+      router.push('/game')
     }
   } catch (e: any) {
     console.error('[Login] 登录失败:', e)

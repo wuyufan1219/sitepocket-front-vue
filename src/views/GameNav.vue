@@ -21,7 +21,8 @@
         <a v-for="site in searchResults" :key="site.id" :href="site.siteUrl" target="_blank" class="site-card">
           <div class="site-row">
             <img
-              :src="site.siteIcon || getFavicon(site.siteUrl)"
+              v-if="site.siteIcon"
+              :src="site.siteIcon"
               class="site-favicon"
             />
             <div class="site-text">
@@ -50,7 +51,8 @@
           <a v-for="site in sec.websites" :key="site.id" :href="site.url" target="_blank" class="site-card">
             <div class="site-row">
               <img
-                :src="site.icon || getFavicon(site.url)"
+                v-if="site.icon"
+                :src="site.icon"
                 class="site-favicon"
               />
               <div class="site-text">
@@ -131,13 +133,6 @@ function clearSearch() {
   keyword.value = ''
   searchResults.value = []
   lastKeyword.value = ''
-}
-
-function getFavicon(url: string): string {
-  try {
-    const host = new URL(url).hostname
-    return `https://www.google.com/s2/favicons?domain=${host}&sz=32`
-  } catch { return '' }
 }
 </script>
 
