@@ -55,6 +55,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import request from '@/utils/request'
 import { Gamepad2, Palette, BookOpen, GraduationCap, Wrench, Film, Music, MessageCircle, PenTool, Brain, Compass, Globe, ChevronLeft, ChevronRight } from '@lucide/vue'
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -83,9 +84,8 @@ function getIcon(name: string) { return iconMap[name] || Compass }
 
 onMounted(async () => {
   try {
-    const res = await fetch('/api/front/category/tree')
-    const json = await res.json()
-    if (json.code === '00000') categories.value = json.data
+    const res = await request.get('/api/front/category/tree')
+    categories.value = res.data.data
   } catch (e) { console.error(e) } finally { loading.value = false }
 })
 
