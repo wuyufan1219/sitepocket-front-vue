@@ -1,13 +1,26 @@
 <template>
   <aside class="sidebar" :class="{ collapsed: !modelValue }">
     <!-- 品牌 -->
-    <div class="sidebar-brand">
+    <div class="sidebar-brand" @click="router.push('/home')" style="cursor:pointer">
       <img src="/图标.png" alt="logo" class="brand-logo" />
       <span class="brand-name">网站口袋</span>
     </div>
 
     <!-- 分类树（主体） -->
     <nav class="category-tree" v-if="!loading">
+      <!-- 首页入口 -->
+      <div class="tree-parent">
+        <a
+          href="javascript:void(0)"
+          class="tree-toggle"
+          :class="{ active: route.path === '/home' }"
+          @click="router.push('/home')"
+        >
+          <Home :size="16" class="tree-icon" />
+          <span class="tree-name">首页</span>
+        </a>
+      </div>
+
       <div v-for="cat in categories" :key="cat.id" class="tree-parent">
         <a
           href="javascript:void(0)"
@@ -56,7 +69,7 @@
 import { ref, onMounted, computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import request from '@/utils/request'
-import { Gamepad2, Palette, BookOpen, GraduationCap, Wrench, Film, Music, MessageCircle, PenTool, Brain, Compass, ChevronLeft, ChevronRight } from '@lucide/vue'
+import { Gamepad2, Palette, BookOpen, GraduationCap, Wrench, Film, Music, MessageCircle, PenTool, Brain, Compass, ChevronLeft, ChevronRight, Home } from '@lucide/vue'
 
 const props = defineProps<{ modelValue: boolean }>()
 defineEmits<{

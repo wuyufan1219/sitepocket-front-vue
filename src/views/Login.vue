@@ -70,10 +70,10 @@ async function handleLogin() {
       const url = `http://localhost:5777/login?token=${encodeURIComponent(authStore.token)}`
       window.location.href = url
     } else {
-      router.push('/game')
+      router.push('/home')
     }
   } catch (e: any) {
-    msg.value = e.response?.data?.msg || '登录失败，请检查用户名或密码'
+    msg.value = e.message || '登录失败，请检查用户名或密码'
     msgType.value = 'error'
   } finally {
     loading.value = false

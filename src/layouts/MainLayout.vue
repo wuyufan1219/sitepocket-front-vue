@@ -11,13 +11,16 @@
           <!-- 左侧留空，品牌已在侧边栏 -->
           <div class="header-left"></div>
 
-          <!-- 右侧：只有头像图标 -->
+          <!-- 右侧：头像 + 昵称 -->
           <div class="header-right">
+            <template v-if="isLoggedIn">
+              <span class="header-nickname">{{ nickname }}</span>
+            </template>
             <span class="avatar-btn" @click.stop="showMenu = !showMenu">
               <UserRound :size="22" />
             </span>
             <div v-if="showMenu" class="user-dropdown" @click.stop>
-              <template v-if="!user">
+              <template v-if="!isLoggedIn">
                 <div class="dropdown-item" @click="openAuthModal('login')">
                   登录
                 </div>
@@ -26,6 +29,9 @@
                 </div>
               </template>
               <template v-else>
+                <router-link to="/user" class="dropdown-item" @click="showMenu = false">
+                  我的收藏
+                </router-link>
                 <router-link to="/profile" class="dropdown-item" @click="showMenu = false">
                   个人中心
                 </router-link>
@@ -56,13 +62,18 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { UserRound } from '@lucide/vue'
 import AuthModal from '@/components/AuthModal.vue'
 import Sidebar from '@/components/Sidebar.vue'
 
 const authStore = useAuthStore()
-const user = computed(() => authStore.fetchUserInfo())
+const router = useRouter()
+// 直接用 computed 读取 store，绕过 storeToRefs 可能的响应式丢失
+const isLoggedIn = computed(() => !!authStore.token)
+const nickname = computed(() => authStore.nickname)
+
 const showMenu = ref(false)
 const showAuthModal = ref(false)
 const authModalMode = ref<'login' | 'register'>('login')
@@ -72,11 +83,13 @@ const isAtTop = ref(true)
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('scroll', onScroll)
+  window.addEventListener('open-auth-modal', onGlobalAuth as EventListener)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('scroll', onScroll)
+  window.removeEventListener('open-auth-modal', onGlobalAuth as EventListener)
 })
 
 function onScroll() {
@@ -94,16 +107,20 @@ function openAuthModal(mode: 'login' | 'register') {
 }
 
 function onLoginSuccess() {
-  // user 是 computed，自动更新，无需手动设置
+  // store 更新后 computed 自动反映
 }
 
-function onRegisterSuccess() {
-  // nothing special
+function onRegisterSuccess() {}
+
+function onGlobalAuth(e: CustomEvent) {
+  authModalMode.value = e.detail?.initialView || 'login'
+  showAuthModal.value = true
 }
 
 function handleLogout() {
   authStore.logout()
   showMenu.value = false
+  router.push('/home')
 }
 
 </script>
@@ -161,6 +178,17 @@ function handleLogout() {
   position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.header-nickname {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .avatar-btn {

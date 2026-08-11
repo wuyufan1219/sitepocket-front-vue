@@ -130,7 +130,7 @@ async function handleRegister() {
       router.push('/login')
     }, 1200)
   } catch (e: any) {
-    msg.value = e.response?.data?.message || e.response?.data?.msg || '注册失败，请稍后重试'
+    msg.value = e.message || '注册失败，请稍后重试'
     msgType.value = 'error'
   } finally {
     loading.value = false

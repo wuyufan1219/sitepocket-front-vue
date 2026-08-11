@@ -6,8 +6,13 @@ const router = createRouter({
     {
       path: '/',
       component: () => import('@/layouts/MainLayout.vue'),
-      redirect: '/game',
+      redirect: '/home',
       children: [
+        {
+          path: 'home',
+          name: 'home',
+          component: () => import('@/views/Home.vue'),
+        },
         {
           path: 'game',
           name: 'game',
@@ -22,6 +27,12 @@ const router = createRouter({
           path: 'profile',
           name: 'profile',
           component: () => import('@/views/Profile.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'user',
+          name: 'user',
+          component: () => import('@/views/User.vue'),
           meta: { requiresAuth: true },
         },
       ],
@@ -47,7 +58,7 @@ router.beforeEach((to, _from) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   // 已登录访问登录/注册页 → 跳转首页
   } else if (token && (to.path === '/login' || to.path === '/register')) {
-    return '/game'
+    return '/home'
   }
 })
 

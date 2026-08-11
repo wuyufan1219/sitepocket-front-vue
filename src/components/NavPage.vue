@@ -18,7 +18,10 @@
         <span v-else>搜索「{{ lastKeyword }}」找到 {{ searchTotal }} 个结果</span>
       </div>
       <div class="site-grid" v-if="searchResults.length">
-        <a v-for="site in searchResults" :key="site.id" :href="site.siteUrl" target="_blank" class="site-card">
+        <a v-for="site in searchResults" :key="site.id" :href="site.siteUrl" target="_blank" class="site-card" :class="siteStatusClass(site)">
+          <button class="bookmark-btn" :class="{ active: bookmarked.has(site.id) }" @click.stop.prevent="toggleBookmark(site.id)" :title="bookmarked.has(site.id) ? '取消收藏' : '收藏'">
+            <Heart :size="15" />
+          </button>
           <div class="site-row">
             <img :src="site.siteIcon || getFavicon(site.siteUrl)" class="site-favicon" />
             <div class="site-text">
@@ -51,15 +54,18 @@
           <span class="section-count">{{ sec.websites.length }} 个</span>
         </div>
         <div class="site-grid">
-          <a v-for="site in sec.websites" :key="site.id" :href="site.url" target="_blank" class="site-card">
-            <div class="site-row">
-              <img :src="site.icon || getFavicon(site.url)" class="site-favicon" />
-              <div class="site-text">
-                <span class="site-name">{{ site.name }}</span>
-                <span class="site-desc" v-if="site.desc">{{ site.desc }}</span>
-              </div>
+          <a v-for="site in sec.websites" :key="site.id" :href="site.url" target="_blank" class="site-card" :class="siteStatusClass(site)">
+          <button class="bookmark-btn" :class="{ active: bookmarked.has(site.id) }" @click.stop.prevent="toggleBookmark(site.id)" :title="bookmarked.has(site.id) ? '取消收藏' : '收藏'">
+            <Heart :size="15" />
+          </button>
+          <div class="site-row">
+            <img :src="site.icon || getFavicon(site.url)" class="site-favicon" />
+            <div class="site-text">
+              <span class="site-name">{{ site.name }}</span>
+              <span class="site-desc" v-if="site.desc">{{ site.desc }}</span>
             </div>
-          </a>
+          </div>
+        </a>
         </div>
       </section>
     </div>
@@ -72,7 +78,8 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/utils/request'
-import { Search } from '@lucide/vue'
+import { useAuthStore } from '@/stores/auth'
+import { Search, Heart } from '@lucide/vue'
 import type { Section, SearchSite, SearchPageData } from '@/types'
 
 /**
@@ -96,6 +103,7 @@ const props = withDefaults(defineProps<{
 })
 
 const route = useRoute()
+const authStore = useAuthStore()
 
 const keyword = ref('')
 const loading = ref(true)
@@ -116,6 +124,32 @@ const searchResults = ref<SearchSite[]>([])
 // 滚动加载触发器
 const loadMoreTrigger = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
+
+// 收藏状态
+const bookmarked = ref(new Set<number>())
+const bookmarkLoading = ref(new Set<number>())
+
+async function toggleBookmark(siteId: number) {
+  if (!authStore.token) {
+    window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { initialView: 'login' } }))
+    return
+  }
+  if (bookmarkLoading.value.has(siteId)) return
+  bookmarkLoading.value.add(siteId)
+  try {
+    if (bookmarked.value.has(siteId)) {
+      await request.delete(`/api/front/user/bookmark/${siteId}`)
+      bookmarked.value.delete(siteId)
+    } else {
+      await request.post(`/api/front/user/bookmark/${siteId}`)
+      bookmarked.value.add(siteId)
+    }
+  } catch (e) {
+    console.error('收藏操作失败', e)
+  } finally {
+    bookmarkLoading.value.delete(siteId)
+  }
+}
 
 const filteredSections = computed(() =>
   activeCat.value ? sections.value.filter(s => s.parentCategoryId === activeCat.value) : sections.value
@@ -227,6 +261,12 @@ function getFavicon(url: string): string {
     return ''
   }
 }
+
+/** 根据 isAlive 返回 CSS 类名（预留后端字段） */
+function siteStatusClass(site: { isAlive?: string }): string {
+  if (!site.isAlive || site.isAlive === 'unknown') return ''
+  return `status-${site.isAlive}`
+}
 </script>
 
 <style scoped>
@@ -269,11 +309,16 @@ function getFavicon(url: string): string {
 
 .site-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .site-card {
+  position: relative;
   display: flex; flex-direction: column; gap: 2px;
   padding: 12px 16px; border-radius: 8px;
   background: #fff; border: 1px solid #ebeef5;
   text-decoration: none; color: inherit; transition: all 0.15s;
 }
+/* 可访问状态 — 预留，待后端返回 isAlive 字段后生效 */
+.site-card.status-alive  { background: #f0fff4; border-color: #c6f6d5; }  /* 绿色 — 网站正常 */
+.site-card.status-dead   { background: #fff5f5; border-color: #fed7d7; }  /* 红色 — 网站挂了 */
+.site-card.status-dead .site-name { color: #c53030; }
 /* 主题色通过 CSS 变量 --accent 注入 */
 .site-card:hover {
   border-color: var(--accent);
@@ -288,6 +333,17 @@ function getFavicon(url: string): string {
 .site-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .site-name { font-size: 14px; font-weight: 600; color: #303133; }
 .site-desc { font-size: 12px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 收藏按钮 */
+.bookmark-btn {
+  position: absolute; top: 6px; right: 6px;
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: transparent; color: #c0c4cc;
+  cursor: pointer; transition: all 0.2s; z-index: 1;
+}
+.bookmark-btn:hover { background: #fef0f0; color: #f56c6c; }
+.bookmark-btn.active { color: #f56c6c; background: #fef0f0; }
 
 .loading-text { text-align: center; padding: 60px; color: #909399; font-size: 14px; }
 

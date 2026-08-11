@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
     const nickname = ref<string>(localStorage.getItem('nickname') || '')
 
     async function login(username: string, password: string) {
-        const res = await request.post('/api/auth/login', { username, password })
+        const res = await request.post('/api/front/user/login', { username, password })
         const payload = res.data.data || res.data
         token.value = payload.token || ''
         role.value = 'user'

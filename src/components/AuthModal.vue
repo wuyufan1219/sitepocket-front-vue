@@ -199,7 +199,7 @@ async function handleLogin() {
     emit('login-success')
     ok = true
   } catch (e: any) {
-    msg.value = e.response?.data?.message || e.response?.data?.msg || '登录失败，请检查用户名或密码'
+    msg.value = e.message || '登录失败，请检查用户名或密码'
     msgType.value = 'error'
   } finally {
     loading.value = false
@@ -247,7 +247,7 @@ async function handleRegister() {
     loginForm.password = registerForm.password
     setTimeout(() => switchToLogin(), 1000)
   } catch (e: any) {
-    msg.value = e.response?.data?.message || e.response?.data?.msg || '注册失败，请稍后重试'
+    msg.value = e.message || '注册失败，请稍后重试'
     msgType.value = 'error'
   } finally {
     loading.value = false

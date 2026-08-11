@@ -2,6 +2,9 @@
  * 前端通用类型定义
  */
 
+/** 网站可访问状态 */
+export type SiteStatus = 'alive' | 'dead' | 'unknown'
+
 /** 网站卡片（分类板块下的网站项） */
 export interface WebsiteCard {
   id: number
@@ -9,6 +12,8 @@ export interface WebsiteCard {
   url: string
   desc: string | null
   icon: string | null
+  /** 后端返回的可访问状态，预留字段：alive=可用, dead=不可用, unknown=未知 */
+  isAlive?: SiteStatus
 }
 
 /** 分类板块（一个子分类对应一个板块，内含若干网站） */
@@ -26,6 +31,8 @@ export interface SearchSite {
   siteUrl: string
   siteIcon: string | null
   siteDesc: string | null
+  /** 后端返回的可访问状态，预留字段 */
+  isAlive?: SiteStatus
 }
 
 /** 搜索分页数据 */
