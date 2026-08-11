@@ -5,7 +5,7 @@
           <!-- 关闭按钮 -->
           <span class="modal-close" @click.stop="close">✕</span>
 
-          <h1>{{ isRegister ? 'SIGN UP' : 'LOGIN' }}</h1>
+          <h1>{{ isRegister ? '注册' : '登录' }}</h1>
 
           <!-- ========== 登录表单 ========== -->
           <form v-if="!isRegister" class="auth-form" @keyup.enter="handleLogin">
@@ -37,8 +37,8 @@
             </button>
 
             <div class="footer">
-              Don't have an account?
-              <a href="#" @click.prevent="switchToRegister">Sign up</a>
+              没有账号？
+              <a href="#" @click.prevent="switchToRegister">注册</a>
             </div>
           </form>
 
@@ -106,8 +106,8 @@
             </button>
 
             <div class="footer">
-              Already have an account?
-              <a href="#" @click.prevent="switchToLogin">Sign in</a>
+              已有账号？
+              <a href="#" @click.prevent="switchToLogin">登录</a>
             </div>
           </form>
 
@@ -189,20 +189,16 @@ function switchToLogin() {
 
 // ==================== 登录 ====================
 async function handleLogin() {
-  console.log('[AuthModal] ===== handleLogin 被调用了 =====')
   loading.value = true
   msg.value = ''
   let ok = false
   try {
-    console.log('[AuthModal] 开始调 authStore.login, username:', loginForm.username)
     await authStore.login(loginForm.username, loginForm.password)
-    console.log('[AuthModal] 登录成功, token:', !!authStore.token)
     msg.value = '登录成功'
     msgType.value = 'success'
     emit('login-success')
     ok = true
   } catch (e: any) {
-    console.error('[AuthModal] 登录失败:', e)
     msg.value = e.response?.data?.message || e.response?.data?.msg || '登录失败，请检查用户名或密码'
     msgType.value = 'error'
   } finally {

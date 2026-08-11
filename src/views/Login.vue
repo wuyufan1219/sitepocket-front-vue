@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h1>LOGIN</h1>
+      <h1>登录</h1>
 
       <form class="login-form" @keyup.enter="handleLogin">
         <div class="form-item">
@@ -32,7 +32,7 @@
         </button>
 
         <div class="footer">
-          Don't have an account? <a href="#" @click.prevent="goToRegister">Sign up</a>
+          没有账号？ <a href="#" @click.prevent="goToRegister">注册</a>
         </div>
       </form>
 
@@ -66,18 +66,13 @@ async function handleLogin() {
     msg.value = '登录成功，正在跳转...'
     msgType.value = 'success'
     // 根据角色跳转：admin → Vben Admin 管理后台，user/vip → 前台首页
-    console.log('[Login] role:', authStore.role, '| token有吗:', !!authStore.token)
     if (authStore.role === 'admin') {
-      console.log('[Login] admin → 跳转 Vben Admin')
       const url = `http://localhost:5777/login?token=${encodeURIComponent(authStore.token)}`
-      console.log('[Login] 跳转URL:', url)
       window.location.href = url
     } else {
-      console.log('[Login] user → 跳转 /game')
       router.push('/game')
     }
   } catch (e: any) {
-    console.error('[Login] 登录失败:', e)
     msg.value = e.response?.data?.msg || '登录失败，请检查用户名或密码'
     msgType.value = 'error'
   } finally {

@@ -1,7 +1,7 @@
 <template>
   <div class="register-page">
     <div class="register-card">
-      <h1>SIGN UP</h1>
+      <h1>注册</h1>
 
       <form class="register-form" @keyup.enter="handleRegister">
         <div class="form-item" :class="{ 'has-error': regErrors.username }">
@@ -66,7 +66,7 @@
         </button>
 
         <div class="footer">
-          Already have an account? <a href="#" @click.prevent="goToLogin">Sign in</a>
+          已有账号？ <a href="#" @click.prevent="goToLogin">登录</a>
         </div>
       </form>
 

@@ -56,7 +56,7 @@
 import { ref, onMounted, computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import request from '@/utils/request'
-import { Gamepad2, Palette, BookOpen, GraduationCap, Wrench, Film, Music, MessageCircle, PenTool, Brain, Compass, Globe, ChevronLeft, ChevronRight } from '@lucide/vue'
+import { Gamepad2, Palette, BookOpen, GraduationCap, Wrench, Film, Music, MessageCircle, PenTool, Brain, Compass, ChevronLeft, ChevronRight } from '@lucide/vue'
 
 const props = defineProps<{ modelValue: boolean }>()
 defineEmits<{
@@ -65,8 +65,8 @@ defineEmits<{
 
 const collapsed = computed(() => !props.modelValue)
 
-const route = useRoute()
 const router = useRouter()
+const route = useRoute()
 
 const categories = ref<CategoryNode[]>([])
 const expandedId = ref<number | null>(null)
@@ -89,8 +89,6 @@ onMounted(async () => {
   } catch (e) { console.error(e) } finally { loading.value = false }
 })
 
-function isActive(path: string) { return route.path === path }
-
 const catRoutes: Record<string, string> = {
   '游戏': '/game', '二次元': '/acg',
 }
@@ -104,11 +102,6 @@ function toggleCat(cat: CategoryNode) {
     const target = catRoutes[cat.name] || '/game'
     router.push({ path: target, query: { category: String(cat.id) } })
   }
-}
-
-function showAll() {
-  expandedId.value = null
-  router.push('/game')
 }
 
 function currentPage(): string {
