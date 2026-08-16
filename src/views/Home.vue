@@ -44,6 +44,7 @@
           target="_blank"
           class="site-card"
           :class="siteStatusClass(site)"
+          @click="recordVisit(site.id)"
         >
           <button class="bookmark-btn" :class="{ active: bookmarked.has(site.id) }" @click.stop.prevent="toggleBookmark(site.id)" :title="bookmarked.has(site.id) ? '取消收藏' : '收藏'">
             <Heart :size="15" />
@@ -52,6 +53,7 @@
           <div class="site-text">
             <span class="site-name">{{ site.siteName }}</span>
             <span class="site-desc" v-if="site.siteDesc">{{ site.siteDesc }}</span>
+            <span class="site-fav" v-if="site.favoriteCount">{{ site.favoriteCount }} 人收藏</span>
           </div>
         </a>
       </div>
@@ -103,28 +105,40 @@
         <div class="site-grid">
           <a
             v-for="site in recentSites"
-            :key="site.id"
-            :href="site.siteUrl"
-            target="_blank"
-            class="site-card"
-            :class="siteStatusClass(site)"
-          >
+          :key="site.id"
+          :href="site.siteUrl"
+          target="_blank"
+          class="site-card"
+          :class="siteStatusClass(site)"
+          @click="recordVisit(site.id)"
+        >
             <button class="bookmark-btn" :class="{ active: bookmarked.has(site.id) }" @click.stop.prevent="toggleBookmark(site.id)" :title="bookmarked.has(site.id) ? '取消收藏' : '收藏'">
               <Heart :size="15" />
             </button>
             <img :src="site.siteIcon || getFavicon(site.siteUrl)" class="site-favicon" />
             <div class="site-text">
-              <span class="site-name">{{ site.siteName }}</span>
+              <span class="site-name">
+                <span v-if="site.checkStatus === 2" class="dead-badge" title="疑似失效">⚠</span>
+                {{ site.siteName }}
+              </span>
               <span class="site-desc" v-if="site.siteDesc">{{ site.siteDesc }}</span>
+              <span class="site-fav" v-if="site.favoriteCount">{{ site.favoriteCount }} 人收藏</span>
             </div>
           </a>
         </div>
       </section>
 
-      <!-- 热门推荐（预留） -->
-      <section class="hot-section" v-if="hotSites.length">
-        <h2 class="section-title">热门推荐</h2>
-        <div class="site-grid">
+      <!-- 热门推荐 -->
+      <section class="hot-section">
+        <div class="hot-header">
+          <h2 class="section-title">热门推荐</h2>
+          <div class="hot-tabs">
+            <button :class="{ active: hotPeriod === 'week' }" @click="switchHot('week')">周榜</button>
+            <button :class="{ active: hotPeriod === 'month' }" @click="switchHot('month')">月榜</button>
+            <button :class="{ active: hotPeriod === 'all' }" @click="switchHot('all')">总榜</button>
+          </div>
+        </div>
+        <div class="site-grid" v-if="hotSites.length">
           <a
             v-for="site in hotSites"
             :key="site.id"
@@ -132,17 +146,23 @@
             target="_blank"
             class="site-card"
             :class="siteStatusClass(site)"
+            @click="recordVisit(site.id)"
           >
             <button class="bookmark-btn" :class="{ active: bookmarked.has(site.id) }" @click.stop.prevent="toggleBookmark(site.id)" :title="bookmarked.has(site.id) ? '取消收藏' : '收藏'">
               <Heart :size="15" />
             </button>
             <img :src="site.siteIcon || getFavicon(site.siteUrl)" class="site-favicon" />
             <div class="site-text">
-              <span class="site-name">{{ site.siteName }}</span>
+              <span class="site-name">
+                <span v-if="site.checkStatus === 2" class="dead-badge" title="疑似失效">⚠</span>
+                {{ site.siteName }}
+              </span>
               <span class="site-desc" v-if="site.siteDesc">{{ site.siteDesc }}</span>
+              <span class="site-fav" v-if="site.favoriteCount">{{ site.favoriteCount }} 人收藏</span>
             </div>
           </a>
         </div>
+        <div v-else class="empty-hot">暂无热门数据</div>
       </section>
     </template>
 
@@ -153,13 +173,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick, type Component } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import request from '@/utils/request'
+import { recordVisit } from '@/utils/visit'
 import { useAuthStore } from '@/stores/auth'
 import { Search, Heart, Gamepad2, Palette, BookOpen, GraduationCap, Wrench, Film, Music, MessageCircle, PenTool, Brain, Compass } from '@lucide/vue'
 import type { SearchSite, SearchPageData, CategoryNode } from '@/types'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 // --- 状态 ---
@@ -177,6 +199,7 @@ const suggestions = ref<(SearchSite & { categoryName?: string })[]>([])
 const categories = ref<(CategoryNode & { route?: string; siteCount?: number })[]>([])
 const recentSites = ref<SearchSite[]>([])
 const hotSites = ref<SearchSite[]>([])
+const hotPeriod = ref<'week' | 'month' | 'all'>('week')
 
 const stats = reactive({ siteCount: 0, catCount: 0, aliveCount: 0 })
 const alivePercent = computed(() => {
@@ -242,13 +265,17 @@ const catRoutes: Record<string, string> = {
 
 // --- 初始化 ---
 onMounted(async () => {
+  // 未登录访问受保护页面被重定向到首页时，自动弹出登录弹窗
+  if (route.query.login === '1') {
+    window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { initialView: 'login' } }))
+    router.replace({ path: '/home' })
+  }
   try {
-    // 只调用已实现的接口，stats/recent/hot 等后端实现后再取消注释
-    const [treeRes] = await Promise.allSettled([
+    const [treeRes, statsRes, recentRes, hotRes] = await Promise.allSettled([
       request.get('/api/front/category/tree'),
-      // request.get('/api/front/website/stats'),      // TODO: 后端未实现
-      // request.get('/api/front/website/recent', { params: { size: 12 } }),  // TODO: 后端未实现
-      // request.get('/api/front/website/hot', { params: { size: 12 } }),     // TODO: 后端未实现
+      request.get('/api/front/website/stats'),
+      request.get('/api/front/website/recent', { params: { size: 12 } }),
+      request.get('/api/front/website/hot', { params: { size: 12, period: hotPeriod.value } }),
     ])
 
     if (treeRes.status === 'fulfilled') {
@@ -256,31 +283,42 @@ onMounted(async () => {
       categories.value = tree.map(cat => ({
         ...cat,
         route: catRoutes[cat.name],
-        siteCount: 0,
+        siteCount: cat.siteCount ?? 0,
       }))
     }
 
-    // TODO: 后端实现后取消下面的注释
-    // if (statsRes.status === 'fulfilled') {
-    //   const d = statsRes.value.data.data
-    //   stats.siteCount = d?.siteCount ?? 0
-    //   stats.catCount = d?.catCount ?? 0
-    //   stats.aliveCount = d?.aliveCount ?? 0
-    // }
+    if (statsRes.status === 'fulfilled') {
+      const d = statsRes.value.data.data
+      stats.siteCount = d?.siteCount ?? 0
+      stats.catCount = d?.catCount ?? 0
+      stats.aliveCount = d?.aliveCount ?? 0
+    }
 
-    // if (recentRes.status === 'fulfilled') {
-    //   recentSites.value = recentRes.value.data.data || []
-    // }
+    if (recentRes.status === 'fulfilled') {
+      recentSites.value = recentRes.value.data.data || []
+    }
 
-    // if (hotRes.status === 'fulfilled') {
-    //   hotSites.value = hotRes.value.data.data || []
-    // }
+    if (hotRes.status === 'fulfilled') {
+      hotSites.value = hotRes.value.data.data || []
+    }
   } catch (e) {
     console.error('首页加载失败', e)
   } finally {
     loading.value = false
   }
 })
+
+// --- 热门榜切换 ---
+async function switchHot(period: 'week' | 'month' | 'all') {
+  if (hotPeriod.value === period) return
+  hotPeriod.value = period
+  try {
+    const res = await request.get('/api/front/website/hot', { params: { size: 12, period } })
+    hotSites.value = res.data.data || []
+  } catch (e) {
+    console.error('热门加载失败', e)
+  }
+}
 
 // --- 搜索 ---
 let suggestTimer: ReturnType<typeof setTimeout> | null = null
@@ -367,12 +405,12 @@ function getFavicon(url: string): string {
   } catch { return '' }
 }
 
-function siteStatusClass(site: { isAlive?: string }): string {
-  if (!site.isAlive || site.isAlive === 'unknown') return ''
-  return `status-${site.isAlive}`
+function siteStatusClass(site: { checkStatus?: number }): string {
+  return site.checkStatus === 2 ? 'status-dead' : ''
 }
 
 function goToSite(site: SearchSite) {
+  recordVisit(site.id)
   window.open(site.siteUrl, '_blank')
 }
 
@@ -461,6 +499,22 @@ function goToCategory(cat: CategoryNode & { route?: string }) {
 }
 .section-title { font-size: 18px; font-weight: 700; color: #303133; margin: 0 0 16px; }
 
+/* 热门榜头部与切换 */
+.hot-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+}
+.hot-header .section-title { margin: 0; }
+.hot-tabs { display: flex; gap: 6px; }
+.hot-tabs button {
+  padding: 4px 14px; border: 1px solid #dcdfe6; border-radius: 14px;
+  background: #fff; color: #606266; font-size: 13px; cursor: pointer;
+  transition: all 0.15s;
+}
+.hot-tabs button:hover { border-color: #409EFF; color: #409EFF; }
+.hot-tabs button.active { background: #409EFF; border-color: #409EFF; color: #fff; }
+.empty-hot { text-align: center; color: #909399; font-size: 13px; padding: 24px 0; }
+
 .category-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px;
 }
@@ -496,8 +550,7 @@ function goToCategory(cat: CategoryNode & { route?: string }) {
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
   transform: translateY(-1px);
 }
-/* 可访问状态预留 */
-.site-card.status-alive  { background: #f0fff4; border-color: #c6f6d5; }
+/* 疑似失效 — 红色背景 */
 .site-card.status-dead   { background: #fff5f5; border-color: #fed7d7; }
 .site-card.status-dead .site-name { color: #c53030; }
 
@@ -507,6 +560,7 @@ function goToCategory(cat: CategoryNode & { route?: string }) {
 }
 .site-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .site-name { font-size: 14px; font-weight: 600; color: #303133; }
+.dead-badge { color: #e6a23c; font-size: 12px; margin-right: 2px; }
 .site-desc {
   font-size: 12px; color: #909399; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;

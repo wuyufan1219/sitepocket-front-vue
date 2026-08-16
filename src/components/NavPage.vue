@@ -43,8 +43,13 @@
 
     <!-- 分类板块滚动区 -->
     <div class="sections" v-if="!loading && !searchResults.length">
+      <div class="sort-bar">
+        <span class="sort-label">排序：</span>
+        <button :class="{ active: sortMode === 'default' }" @click="sortMode = 'default'">默认</button>
+        <button :class="{ active: sortMode === 'visit' }" @click="sortMode = 'visit'">最多访问</button>
+      </div>
       <section
-        v-for="sec in filteredSections"
+        v-for="sec in sortedSections"
         :key="sec.subCategoryId"
         :id="'section-' + sec.subCategoryId"
         class="category-section"
@@ -54,15 +59,19 @@
           <span class="section-count">{{ sec.websites.length }} 个</span>
         </div>
         <div class="site-grid">
-          <a v-for="site in sec.websites" :key="site.id" :href="site.url" target="_blank" class="site-card" :class="siteStatusClass(site)">
+          <a v-for="site in sec.websites" :key="site.id" :href="site.url" target="_blank" class="site-card" :class="siteStatusClass(site)" @click="recordVisit(site.id)">
           <button class="bookmark-btn" :class="{ active: bookmarked.has(site.id) }" @click.stop.prevent="toggleBookmark(site.id)" :title="bookmarked.has(site.id) ? '取消收藏' : '收藏'">
             <Heart :size="15" />
           </button>
           <div class="site-row">
             <img :src="site.icon || getFavicon(site.url)" class="site-favicon" />
             <div class="site-text">
-              <span class="site-name">{{ site.name }}</span>
+              <span class="site-name">
+                <span v-if="site.checkStatus === 2" class="dead-badge" title="疑似失效">⚠</span>
+                {{ site.name }}
+              </span>
               <span class="site-desc" v-if="site.desc">{{ site.desc }}</span>
+              <span class="site-fav" v-if="site.favoriteCount">{{ site.favoriteCount }} 人收藏</span>
             </div>
           </div>
         </a>
@@ -78,6 +87,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/utils/request'
+import { recordVisit } from '@/utils/visit'
 import { useAuthStore } from '@/stores/auth'
 import { Search, Heart } from '@lucide/vue'
 import type { Section, SearchSite, SearchPageData } from '@/types'
@@ -154,6 +164,16 @@ async function toggleBookmark(siteId: number) {
 const filteredSections = computed(() =>
   activeCat.value ? sections.value.filter(s => s.parentCategoryId === activeCat.value) : sections.value
 )
+
+// 排序：默认（后端顺序） / 最多访问（累计访问量倒序）
+const sortMode = ref<'default' | 'visit'>('default')
+const sortedSections = computed(() => {
+  if (sortMode.value !== 'visit') return filteredSections.value
+  return filteredSections.value.map(sec => ({
+    ...sec,
+    websites: [...sec.websites].sort((a, b) => (b.visitCount ?? 0) - (a.visitCount ?? 0)),
+  }))
+})
 
 onMounted(async () => {
   try {
@@ -262,10 +282,9 @@ function getFavicon(url: string): string {
   }
 }
 
-/** 根据 isAlive 返回 CSS 类名（预留后端字段） */
-function siteStatusClass(site: { isAlive?: string }): string {
-  if (!site.isAlive || site.isAlive === 'unknown') return ''
-  return `status-${site.isAlive}`
+/** 根据 checkStatus 返回 CSS 类名（疑似失效显示红色背景） */
+function siteStatusClass(site: { checkStatus?: number }): string {
+  return site.checkStatus === 2 ? 'status-dead' : ''
 }
 </script>
 
@@ -299,6 +318,18 @@ function siteStatusClass(site: { isAlive?: string }): string {
 .load-more { text-align: center; padding: 20px; color: #909399; font-size: 13px; }
 
 .sections { padding: 24px 24px 48px; max-width: 1200px; margin: 0 auto; }
+.sort-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px;
+}
+.sort-label { font-size: 13px; color: #909399; }
+.sort-bar button {
+  padding: 4px 14px; border: 1px solid #dcdfe6; border-radius: 14px;
+  background: #fff; color: #606266; font-size: 13px; cursor: pointer;
+  transition: all 0.15s;
+}
+.sort-bar button:hover { border-color: var(--accent); color: var(--accent); }
+.sort-bar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .category-section { margin-bottom: 36px; scroll-margin-top: 80px; }
 .section-header {
   display: flex; align-items: center; gap: 10px;
@@ -315,9 +346,8 @@ function siteStatusClass(site: { isAlive?: string }): string {
   background: #fff; border: 1px solid #ebeef5;
   text-decoration: none; color: inherit; transition: all 0.15s;
 }
-/* 可访问状态 — 预留，待后端返回 isAlive 字段后生效 */
-.site-card.status-alive  { background: #f0fff4; border-color: #c6f6d5; }  /* 绿色 — 网站正常 */
-.site-card.status-dead   { background: #fff5f5; border-color: #fed7d7; }  /* 红色 — 网站挂了 */
+/* 疑似失效 — 红色背景（与 ⚠ 图标同时出现） */
+.site-card.status-dead   { background: #fff5f5; border-color: #fed7d7; }
 .site-card.status-dead .site-name { color: #c53030; }
 /* 主题色通过 CSS 变量 --accent 注入 */
 .site-card:hover {
@@ -332,7 +362,9 @@ function siteStatusClass(site: { isAlive?: string }): string {
 }
 .site-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .site-name { font-size: 14px; font-weight: 600; color: #303133; }
+.dead-badge { color: #e6a23c; font-size: 12px; margin-right: 2px; }
 .site-desc { font-size: 12px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.site-fav { font-size: 11px; color: #e6a23c; }
 
 /* 收藏按钮 */
 .bookmark-btn {

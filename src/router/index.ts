@@ -38,9 +38,37 @@ const router = createRouter({
       ],
     },
     {
-      path: '/register',
-      name: 'register',
-      component: () => import('@/views/Register.vue'),
+      path: '/admin',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      redirect: '/admin/dashboard',
+      meta: { requiresAdmin: true },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'admin-dashboard',
+          component: () => import('@/views/admin/Dashboard.vue'),
+        },
+        {
+          path: 'category',
+          name: 'admin-category',
+          component: () => import('@/views/admin/CategoryManage.vue'),
+        },
+        {
+          path: 'website',
+          name: 'admin-website',
+          component: () => import('@/views/admin/WebsiteManage.vue'),
+        },
+        {
+          path: 'submission',
+          name: 'admin-submission',
+          component: () => import('@/views/admin/SubmissionManage.vue'),
+        },
+        {
+          path: 'user',
+          name: 'admin-user',
+          component: () => import('@/views/admin/UserManage.vue'),
+        },
+      ],
     },
     {
       path: '/login',
@@ -51,14 +79,21 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, _from) => {
+router.beforeEach((to) => {
   const token = localStorage.getItem('token')
-  // 未登录访问受保护页面 → 跳转登录
+  const adminToken = localStorage.getItem('admin_token')
+
+  // 后台受保护页面 → 未登录跳后台登录页
+  if (to.meta.requiresAdmin && !adminToken) {
+    return { path: '/login' }
+  }
+  // 前台受保护页面（/profile, /user）→ 未登录跳首页并触发登录弹窗
   if (to.meta.requiresAuth && !token) {
-    return { path: '/login', query: { redirect: to.fullPath } }
-  // 已登录访问登录/注册页 → 跳转首页
-  } else if (token && (to.path === '/login' || to.path === '/register')) {
-    return '/home'
+    return { path: '/home', query: { login: '1' } }
+  }
+  // 已登录管理员访问后台登录页 → 直接进后台首页
+  if (to.path === '/login' && adminToken) {
+    return { path: '/admin' }
   }
 })
 

@@ -29,6 +29,9 @@
       <button :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
         <History :size="16" /> 最近浏览
       </button>
+      <button :class="{ active: activeTab === 'submissions' }" @click="activeTab = 'submissions'">
+        <Send :size="16" /> 我的提交
+      </button>
       <button :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
         <Settings :size="16" /> 设置
       </button>
@@ -111,6 +114,33 @@
       </div>
     </div>
 
+    <!-- ==================== 我的提交 ==================== -->
+    <div class="tab-content" v-if="activeTab === 'submissions'">
+      <div class="toolbar">
+        <span class="bm-count">我提交的网站</span>
+      </div>
+
+      <div class="submission-list" v-if="submissions.length">
+        <div v-for="s in submissions" :key="s.id" class="submission-item">
+          <div class="submission-main">
+            <span class="submission-name">{{ s.siteName }}</span>
+            <a :href="s.siteUrl" target="_blank" class="submission-url">{{ s.siteUrl }}</a>
+          </div>
+          <div class="submission-meta">
+            <span class="submission-cat">{{ s.categoryName || '未分类' }}</span>
+            <span class="status-badge" :class="statusClass(s.status)">{{ statusText(s.status) }}</span>
+          </div>
+          <p v-if="s.rejectReason" class="submission-reason">驳回原因：{{ s.rejectReason }}</p>
+          <span class="submission-time">{{ formatTime(s.createTime) }}</span>
+        </div>
+      </div>
+      <div v-else class="empty-state">
+        <Send :size="48" class="empty-icon" />
+        <p>还没有提交过网站</p>
+        <p class="empty-hint">点击右上角头像菜单中的「提交网站」即可推荐</p>
+      </div>
+    </div>
+
     <!-- ==================== 设置 ==================== -->
     <div class="tab-content" v-if="activeTab === 'settings'">
       <div class="settings-card">
@@ -151,8 +181,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import request from '@/utils/request'
-import { UserRound, Bookmark, History, Settings, Search, X, Pencil } from '@lucide/vue'
-import type { SearchSite } from '@/types'
+import { UserRound, Bookmark, History, Settings, Search, X, Pencil, Send } from '@lucide/vue'
+import type { SearchSite, WebsiteSubmission } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -162,7 +192,7 @@ const nickname = ref(localStorage.getItem('nickname') || '用户')
 const username = ref('')
 
 // --- Tab ---
-type Tab = 'bookmarks' | 'history' | 'settings'
+type Tab = 'bookmarks' | 'history' | 'submissions' | 'settings'
 const activeTab = ref<Tab>('bookmarks')
 
 // --- 收藏 ---
@@ -220,6 +250,24 @@ async function clearHistory() {
     browseHistory.value = []
     historyCount.value = 0
   } catch (e) { console.error('清空失败', e) }
+}
+
+// --- 我的提交 ---
+const submissions = ref<WebsiteSubmission[]>([])
+
+async function loadSubmissions() {
+  try {
+    const res = await request.get('/api/front/submission/my')
+    submissions.value = res.data.data || []
+  } catch { /* 静默 */ }
+}
+
+function statusText(status: number): string {
+  return status === 0 ? '待审核' : status === 1 ? '已通过' : '已驳回'
+}
+
+function statusClass(status: number): string {
+  return status === 0 ? 'pending' : status === 1 ? 'approved' : 'rejected'
 }
 
 // --- 昵称编辑 ---
@@ -298,6 +346,9 @@ onMounted(async () => {
     browseHistory.value = histRes.data.data || []
     historyCount.value = browseHistory.value.length
   } catch { /* 浏览记录接口可能未实现 */ }
+
+  // 加载我的提交
+  loadSubmissions()
 })
 </script>
 
@@ -387,6 +438,25 @@ onMounted(async () => {
 .empty-icon { color: #c0c4cc; margin-bottom: 12px; }
 .empty-state p { margin: 4px 0; font-size: 14px; }
 .empty-hint { font-size: 12px; color: #c0c4cc; }
+
+/* ==================== 我的提交 ==================== */
+.submission-list { display: flex; flex-direction: column; gap: 12px; }
+.submission-item {
+  background: #fff; border: 1px solid #ebeef5; border-radius: 8px;
+  padding: 14px 16px; position: relative;
+}
+.submission-main { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding-right: 90px; }
+.submission-name { font-size: 15px; font-weight: 600; color: #303133; }
+.submission-url { font-size: 12px; color: #409EFF; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.submission-url:hover { text-decoration: underline; }
+.submission-meta { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.submission-cat { font-size: 12px; color: #909399; background: #f5f7fa; padding: 2px 8px; border-radius: 4px; }
+.status-badge { font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.status-badge.pending { background: #fdf6ec; color: #e6a23c; }
+.status-badge.approved { background: #f0f9eb; color: #67c23a; }
+.status-badge.rejected { background: #fef0f0; color: #f56c6c; }
+.submission-reason { font-size: 12px; color: #f56c6c; margin: 8px 0 0; }
+.submission-time { position: absolute; top: 14px; right: 16px; font-size: 11px; color: #c0c4cc; }
 
 /* ==================== 分页 ==================== */
 .pagination {

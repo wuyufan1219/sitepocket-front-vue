@@ -2,6 +2,12 @@
   <Teleport to="body">
     <div v-if="visible" class="modal-overlay" @click.self="close">
         <div class="modal-card">
+          <!-- 管理端登录入口 -->
+          <button type="button" class="admin-entry" @click="goAdminLogin">
+            <ShieldCheck :size="14" />
+            管理端登录
+          </button>
+
           <!-- 关闭按钮 -->
           <span class="modal-close" @click.stop="close">✕</span>
 
@@ -122,6 +128,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { ShieldCheck } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
@@ -136,6 +144,13 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
+const router = useRouter()
+
+// 跳转到后台管理登录页
+function goAdminLogin() {
+  close()
+  router.push('/login')
+}
 
 const loading = ref(false)
 const msg = ref('')
@@ -293,6 +308,29 @@ async function handleRegister() {
 }
 .modal-close:hover {
   color: #333;
+}
+
+/* 管理端登录入口 */
+.admin-entry {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1.5px solid #0f0303;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f0303;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.admin-entry:hover {
+  background: #0f0303;
+  color: #fff;
 }
 
 h1 {

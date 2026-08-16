@@ -21,6 +21,9 @@
             </span>
             <div v-if="showMenu" class="user-dropdown" @click.stop>
               <template v-if="!isLoggedIn">
+                <div class="dropdown-item" @click="openSubmit">
+                  提交网站
+                </div>
                 <div class="dropdown-item" @click="openAuthModal('login')">
                   登录
                 </div>
@@ -29,6 +32,9 @@
                 </div>
               </template>
               <template v-else>
+                <div class="dropdown-item" @click="openSubmit">
+                  提交网站
+                </div>
                 <router-link to="/user" class="dropdown-item" @click="showMenu = false">
                   我的收藏
                 </router-link>
@@ -57,6 +63,9 @@
       @login-success="onLoginSuccess"
       @register-success="onRegisterSuccess"
     />
+
+    <!-- 提交网站弹窗 -->
+    <SubmitSiteModal v-model:visible="showSubmitModal" />
   </div>
 </template>
 
@@ -66,6 +75,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { UserRound } from '@lucide/vue'
 import AuthModal from '@/components/AuthModal.vue'
+import SubmitSiteModal from '@/components/SubmitSiteModal.vue'
 import Sidebar from '@/components/Sidebar.vue'
 
 const authStore = useAuthStore()
@@ -76,6 +86,7 @@ const nickname = computed(() => authStore.nickname)
 
 const showMenu = ref(false)
 const showAuthModal = ref(false)
+const showSubmitModal = ref(false)
 const authModalMode = ref<'login' | 'register'>('login')
 const sidebarExpanded = ref(true)
 const isAtTop = ref(true)
@@ -104,6 +115,15 @@ function openAuthModal(mode: 'login' | 'register') {
   showMenu.value = false
   authModalMode.value = mode
   showAuthModal.value = true
+}
+
+function openSubmit() {
+  showMenu.value = false
+  if (isLoggedIn.value) {
+    showSubmitModal.value = true
+  } else {
+    openAuthModal('login')
+  }
 }
 
 function onLoginSuccess() {

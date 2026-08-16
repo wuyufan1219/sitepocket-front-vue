@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="element-plus/global" />
 
 /**
  * 扩展 Vite 环境变量类型
